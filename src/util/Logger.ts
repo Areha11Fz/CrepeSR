@@ -22,8 +22,21 @@ export default class Logger {
     }
 
     private raw(...args: string[]) {
-        // @ts-ignore - Element implicitly has an 'any' type because index expression is not of type 'number'
-        console.log(`[${this.getDate().white.bold}] <${this.name[this.color].bold}>`, ...args);
+
+        if (args[0].endsWith('Req')) {
+            // @ts-ignore - Element implicitly has an 'any' type because index expression is not of type 'number'
+            console.log(`[${this.getDate().white.bold}] <${this.name[this.color].bold}>`, args[0].blue);
+        } if (args[0].endsWith('Rsp')) {
+            // @ts-ignore - Element implicitly has an 'any' type because index expression is not of type 'number'
+            console.log(`[${this.getDate().white.bold}] <${this.name[this.color].bold}>`, args[0].green);
+        } if (args[0].endsWith('Notify')) {
+            // @ts-ignore - Element implicitly has an 'any' type because index expression is not of type 'number'
+            console.log(`[${this.getDate().white.bold}] <${this.name[this.color].bold}>`, args[0].cyan);
+        } else {
+            // @ts-ignore - Element implicitly has an 'any' type because index expression is not of type 'number'
+            // console.log(`[${this.getDate().white.bold}] <${this.name[this.color].bold}>`, ...args);
+        }
+
     }
 
     public log(...args: string[]) {
@@ -36,7 +49,7 @@ export default class Logger {
 
     public error(e: Error | string, stack: boolean = true) {
         if (typeof e === 'string') e = new Error(e);
-        console.log(`[${this.getDate().white.bold}] ${`ERROR<${this.name}>`.bgRed.bold}`, e.message);
+        console.log(`[${this.getDate().red.bold}] ${`ERROR<${this.name}>`.bgRed.bold}`, e.message);
         if (e.stack && stack) this.trail(e.stack);
     }
 
