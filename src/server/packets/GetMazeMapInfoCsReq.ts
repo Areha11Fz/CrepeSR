@@ -16,7 +16,7 @@ export default async function handle(session: Session, packet: Packet) {
     } as GetMazeMapInfoScRsp;
 
     // TODO: No excel info atm
-    for (var i = 0; i < 20; i++) {
+    for (let i = 0; i < 20; i++) {
         dataObj.lightenSectionList.push(i)
     }
 
