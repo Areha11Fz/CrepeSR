@@ -8,6 +8,8 @@ import Logger, { VerboseLevel } from '../../util/Logger';
 import defaultHandler from '../packets/PacketHandler';
 import Account from '../../db/Account';
 import Player from '../../db/Player';
+import { PlayerSyncScNotify } from '../../data/proto/StarRail';
+import Avatar from '../../db/Avatar';
 
 function r(...args: string[]) {
     return fs.readFileSync(resolve(__dirname, ...args));
@@ -45,8 +47,6 @@ export default class Session {
             recv = this.kcpobj.recv();
             if (!recv) break;
 
-            this.c.debug(`recv ${recv.toString("hex")}`);
-
             if (Packet.isValid(recv)) {
                 this.handlePacket(new Packet(recv));
             }
@@ -58,6 +58,7 @@ export default class Session {
 
     public async handlePacket(packet: Packet) {
         if (Logger.VERBOSE_LEVEL >= VerboseLevel.WARNS) this.c.log(packet.protoName)
+        this.c.debug(packet.body);
 
         import(`../packets/${packet.protoName}`).then(mod => {
             mod.default(this, packet);
@@ -69,11 +70,23 @@ export default class Session {
         });
     }
 
+    public async sync() {
+        const avatars = await Avatar.fromUID(this.player.db._id);
+        this.send("PlayerSyncScNotify", {
+            avatarSync: {
+                avatarList: avatars.map(x => x.data),
+            },
+            basicInfo: this.player.db.basicInfo
+        } as PlayerSyncScNotify);
+        
+        this.player.save();
+    }
+
     public send(name: PacketName, body: {}) {
+        this.c.debug(body);
         const packet = Packet.encode(name, body);
         if (!packet) return;
         if (Logger.VERBOSE_LEVEL >= VerboseLevel.WARNS) this.c.log(packet.protoName);
-        this.c.debug(`send ${packet.rawData.toString('hex')}`);
         this.kcpobj.send(packet.rawData);
     }
 

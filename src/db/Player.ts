@@ -1,3 +1,4 @@
+import { LineupInfo, Vector } from "../data/proto/StarRail";
 import Logger from "../util/Logger";
 import Account from "./Account";
 import Database from "./Database";
@@ -17,6 +18,15 @@ interface PlayerI {
         hcoin: number;
         scoin: number;
         worldLevel: number;
+    }
+    lineup: {
+        curIndex: number;
+        lineups: LineupInfo[];
+    }
+    posData: {
+        floorID: number;
+        planeID: number;
+        pos?: Vector;
     }
 }
 
@@ -39,6 +49,15 @@ export default class Player {
         if (!plr) return Player.fromUID((await Account.fromToken(token))?.uid || Math.round(Math.random() * 50000));
 
         return new Player(plr);
+    }
+
+    public getCurLineup() {
+        return this.db.lineup.lineups[this.db.lineup.curIndex];
+    }
+
+    public setCurLineup(lineup: LineupInfo, curIndex: number = this.db.lineup.curIndex) {
+        this.db.lineup.lineups[curIndex] = lineup;
+        this.db.lineup.curIndex = curIndex;
     }
 
     public static async create(uid: number | string): Promise<Player | undefined> {
