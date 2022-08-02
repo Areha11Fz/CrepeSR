@@ -40,7 +40,9 @@ export default async function handle(command: Command) {
         }
         case "removeall": {
             for (const id in AvatarExcelTable) {
-                Avatar.remove(uid, parseInt(id)).then(() => c.log(`All Avatar has been removed from ${uid}`));
+                if (!(id == '1001')) {
+                    Avatar.remove(uid, parseInt(id)).then(() => c.log(`All Avatar except March 7th has been removed from ${uid}`));
+                }
             }
             break;
         }
