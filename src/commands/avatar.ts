@@ -1,4 +1,5 @@
 import Avatar from "../db/Avatar";
+import AvatarExcelTable from "../data/excel/AvatarExcelTable.json";
 import Logger from "../util/Logger";
 import Interface, { Command } from "./Interface";
 const c = new Logger("/avatar", "blue");
@@ -27,6 +28,16 @@ export default async function handle(command: Command) {
         case "remove":
             if (!avatarId) return c.log("No avatarId specified");
             Avatar.remove(uid, avatarId).then(() => c.log(`Avatar ${avatarId} removed from ${uid}`));
+            break;
+        case "giveall":
+            for (let id in AvatarExcelTable) {
+                Avatar.create(uid, parseInt(id)).then(() => c.log(`All Avatar has been added to ${uid}`));
+            }
+            break;
+        case "removeall":
+            for (let id in AvatarExcelTable) {
+                Avatar.remove(uid, parseInt(id)).then(() => c.log(`All Avatar has been removed from ${uid}`));
+            }
             break;
     }
 
