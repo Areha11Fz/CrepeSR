@@ -22,19 +22,8 @@ export default class Logger {
     }
 
     private raw(...args: string[]) {
-        if (args[0].endsWith('Req')) {
-            // @ts-ignore - Element implicitly has an 'any' type because index expression is not of type 'number'
-            console.log(`[${this.getDate().white.bold}] <${this.name[this.color].bold}>`, args[0].blue);
-        } if (args[0].endsWith('Rsp')) {
-            // @ts-ignore - Element implicitly has an 'any' type because index expression is not of type 'number'
-            console.log(`[${this.getDate().white.bold}] <${this.name[this.color].bold}>`, args[0].green);
-        } if (args[0].endsWith('Notify')) {
-            // @ts-ignore - Element implicitly has an 'any' type because index expression is not of type 'number'
-            console.log(`[${this.getDate().white.bold}] <${this.name[this.color].bold}>`, args[0].cyan);
-        } else {
-            // @ts-ignore - Element implicitly has an 'any' type because index expression is not of type 'number'
-            // console.log(`[${this.getDate().white.bold}] <${this.name[this.color].bold}>`, ...args);
-        }
+        // @ts-ignore - Element implicitly has an 'any' type because index expression is not of type 'number'
+        console.log(`[${this.getDate().white.bold}] <${this.name[this.color].bold}>`, ...args);
     }
 
     public log(...args: string[]) {
