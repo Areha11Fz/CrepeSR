@@ -5,7 +5,7 @@ import Session from "../kcp/Session";
 export default async function handle(session: Session, packet: Packet) {
     const body = packet.body as GetMazeMapInfoScRsp;
 
-    session.send("GetMazeMapInfoScRsp", {
+    const dataObj = {
         retcode: 0,
         entryId: body.entryId,
         lightenSectionList: [],
@@ -13,5 +13,12 @@ export default async function handle(session: Session, packet: Packet) {
         mazeGroupList: [{ groupId: 0, modifyTime: 0 }],
         opendChestNum: 0,
         unlockTeleportList: []
-    } as GetMazeMapInfoScRsp);
+    } as GetMazeMapInfoScRsp;
+
+    // TODO: No excel info atm
+    for (var i = 0; i < 20; i++) {
+        dataObj.lightenSectionList.push(i)
+    }
+
+    session.send("GetMazeMapInfoScRsp", dataObj);
 }
