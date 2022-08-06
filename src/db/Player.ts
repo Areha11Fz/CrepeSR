@@ -1,8 +1,11 @@
-import { ExtraLineupType, HeroBasicType, LineupInfo, Vector } from "../data/proto/StarRail";
+import Session from "../server/kcp/Session";
+import { AvatarType, ExtraLineupType, HeroBasicType, LineupAvatar, LineupInfo, Vector } from "../data/proto/StarRail";
 import Logger from "../util/Logger";
 import Account from "./Account";
 import Avatar from "./Avatar";
 import Database from "./Database";
+import { Scene } from "../game/Scene";
+import Inventory from "./Inventory";
 const c = new Logger("Player");
 
 export interface LineupI {
@@ -40,43 +43,63 @@ interface PlayerI {
     posData: {
         floorID: number;
         planeID: number;
-        pos?: Vector;
+        pos: {
+            x: number,
+            y: number,
+            z: number
+        };
     }
 }
 
 export default class Player {
-    public readonly uid: number;
-    private constructor(public db: PlayerI) {
+    public readonly uid: number
+    public readonly scene: Scene;
+    private inventory!: Inventory;
+
+    private constructor(readonly session: Session, public readonly db: PlayerI) {
         this.uid = db._id;
+        this.scene = new Scene(this);
     }
 
-    public static async fromUID(uid: number | string): Promise<Player | undefined> {
+    public static async fromUID(session: Session, uid: number | string): Promise<Player | undefined> {
         if (typeof uid == "string") uid = Number(uid);
         const db = Database.getInstance();
         const player = await db.get("players", { _id: uid }) as unknown as PlayerI;
-        if (!player) return Player.create(uid);
-        return new Player(player);
+        if (!player) return Player.create(session, uid);
+        return new Player(session, player);
     }
 
-    public static async fromToken(token: string): Promise<Player | undefined> {
+    public static async fromToken(session: Session, token: string): Promise<Player | undefined> {
         const db = Database.getInstance();
-        const plr = await db.get("players", { token }) as unknown as PlayerI;
-        if (!plr) return Player.fromUID((await Account.fromToken(token))?.uid || Math.round(Math.random() * 50000));
+        const plr = await db.get("players", { token: token }) as unknown as PlayerI;
+        if (!plr) return await Player.fromUID(session, (await Account.fromToken(token))?.uid || Math.round(Math.random() * 50000));
 
-        return new Player(plr);
+        return new Player(session, plr);
     }
 
     public async getLineup(lineupIndex?: number): Promise<LineupInfo> {
-        const curIndex = this.db.lineup.curIndex;
-        const lineup = this.db.lineup.lineups[lineupIndex || curIndex];
-        const avatars = await Avatar.fromLineup(this.uid, lineup);
-        let slot = 0;
-        avatars.forEach(avatar => {
-            avatar.lineup.slot = slot++;
-        });
+        // Get avatar data.
+        const index = lineupIndex ?? this.db.lineup.curIndex;
+        const lineup = this.db.lineup.lineups[index];
+        const avatars = await Avatar.getAvatarsForLineup(this, lineup);
+
+        // Construct LineupInfo.
+        const lineupAvatars : LineupAvatar[] = [];
+        for (let slot = 0; slot < avatars.length; slot++) {
+            lineupAvatars.push({
+                slot: slot,
+                avatarType: avatars[slot].db.avatarType,
+                id: avatars[slot].db.baseAvatarId,
+                hp: avatars[slot].db.fightProps.hp,
+                sp: avatars[slot].db.fightProps.sp,
+                satiety: avatars[slot].db.fightProps.satiety
+            });
+        }
+
         return {
             ...lineup,
-            avatarList: avatars.map(x => x.lineup)
+            index: index,
+            avatarList: lineupAvatars
         }
     }
 
@@ -89,7 +112,16 @@ export default class Player {
         this.db.lineup.curIndex = curIndex;
     }
 
-    public static async create(uid: number | string): Promise<Player | undefined> {
+    public async getInventory() : Promise<Inventory> {
+        // If this players inventory has not been loaded yet, do so now.
+        if (!this.inventory) {
+            this.inventory = await Inventory.loadOrCreate(this);
+        }
+
+        return this.inventory;
+    }
+
+    public static async create(session: Session, uid: number | string): Promise<Player | undefined> {
         if (typeof uid == "string") uid = Number(uid);
         const acc = await Account.fromUID(uid);
         if (!acc) {
@@ -105,13 +137,13 @@ export default class Player {
             heroBasicType: HeroBasicType.BoyWarrior,
             basicInfo: {
                 exp: 0,
-                level: 1,
+                level: 70,
                 hcoin: 0,
                 mcoin: 0,
                 nickname: acc.name,
                 scoin: 0,
-                stamina: 100,
-                worldLevel: 1,
+                stamina: 180,
+                worldLevel: 6,
             },
             lineup: {
                 curIndex: 0,
@@ -119,39 +151,42 @@ export default class Player {
             },
             posData: {
                 floorID: 10001001,
-                planeID: 10001
+                planeID: 10001,
+                pos: {
+                    x: 0,
+                    y: 439,
+                    z: -45507
+                }
             },
             banned: false
-        } as PlayerI
+        } as PlayerI;
 
-        const baseLineup = {
-            avatarList: [1001],
-            extraLineupType: ExtraLineupType.LINEUP_NONE,
-            index: 0,
-            isVirtual: false,
-            leaderSlot: 0,
-            mp: 100, // ?? Not sure what this is
-            name: "",
-            planeId: 10001
-        }
         const LINEUPS = 6;
-        let slot = 0;
-        dataObj.lineup = {
-            curIndex: 0,
-            lineups: {}
-        }
-        for (let i = 0; i <= LINEUPS; i++) {
-            let copy = baseLineup;
-            copy.index = slot++;
-            dataObj.lineup.lineups[i] = copy;
+        for (let i = 0; i < LINEUPS; i++) {
+            const l : LineupI = {
+                avatarList: [1001],
+                extraLineupType: ExtraLineupType.LINEUP_NONE,
+                index: i,
+                isVirtual: false,
+                leaderSlot: 0,
+                mp: 100,
+                name: `Team ${i}`,
+                planeId: 10001
+            };
+            dataObj.lineup.lineups[i] = l;
         }
 
+        const player = new Player(session, dataObj);
+        await Avatar.addAvatarToPlayer(player, 1001);
+
+        // Save to database and return.
         await db.set("players", dataObj);
-        return new Player(dataObj);
+        return player;
     }
 
     public async save() {
         const db = Database.getInstance();
+        c.debug(JSON.stringify(this.db, null, 2));
         await db.update("players", { _id: this.db._id }, this.db);
     }
 }
